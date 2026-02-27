@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>CC Death Mapper Pro</title>
+    <style>
+        :root {
+            --bg: #1e1e24; --panel: #2b2b36; --text: #f8f9fa;
+            --primary: #e63946; --secondary: #457b9d; --success: #2a9d8f; --warning: #e9c46a;
+        }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 0; display: flex; flex-direction: column; height: 100vh; }
+        
+        /* ヘッダー */
+        .header { background: #151519; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #333; }
+        .map-status { background: #333; padding: 5px 15px; border-radius: 20px; font-size: 0.9rem; border: 1px solid var(--warning); }
+        .tabs button { background: #444; color: white; border: none; padding: 10px 20px; margin-right: 10px; cursor: pointer; border-radius: 4px; font-weight: bold; }
+        .tabs button.active { background: var(--primary); }
+
+        .container { display: flex; flex: 1; overflow: hidden; }
+        
+        /* マップエリア */
+        .map-section { flex: 1; background: #0b0b0d; position: relative; overflow: auto; cursor: grab;display: flex; justify-content: center; align-items: center; flex-direction: column; }
+        .map-section:active { cursor: grabbing; }
+        /* 修正: シアターモード（拡大時）に画像の上や左が隠れないよう基準点を変更 */
+        .theater-mode .map-section { justify-content: flex-start; align-items: flex-start; }
+        #map-container { position: relative; background: #000; border: 2px solid #555; cursor: crosshair; display: inline-block; }
+        /* 修正: 通常時 900px */
+        #map-image { width: 900px; display: block; opacity: 0.8; pointer-events: none; }
+        /* シアターモード時に巨大化させる設定 */
+        .theater-mode #map-image { width: 1800px; min-width: 1400px; }
+
+        .zoom-ctrl { position: fixed; top: 80px; left: 20px; display: flex; gap: 10px; z-index:21;}
+        .zoom-btn { background: var(--primary); color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        .map-label-overlay { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.7); padding: 5px 10px; border-radius: 4px; font-weight: bold; color: var(--warning); pointer-events: none; }
+
+        /* ドットスタイル */
+        .dot { position: absolute; width: 24px; height: 24px; border-radius: 50%; transform: translate(-50%, -50%); display: flex; justify-content: center; align-items: center; font-size: 11px; font-weight: bold; color: white; border: 2px solid #fff; box-shadow: 0 0 5px rgba(0,0,0,0.8); cursor: pointer; z-index: 10; }
+        .dot.death { background: var(--primary); z-index: 20; }
+        .dot.crystal { background: var(--warning); color: #333; border-color: #333; width: 40px; height: 40px; /* 縦幅を大きく */ font-size: 15px; z-index: 5; /* 他のドットの下に表示されるように調整 */ }
+        .dot.ally { background: #5cde4e; }
+        .dot.enemy { background: purple; }
+        .dot.view-mode-death { background: var(--primary); opacity: 0.7; transition: 0.2s; }
+        .dot.view-mode-death:hover { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
+        .dot.selected-death { background: #ff00ff; box-shadow: 0 0 15px #ff00ff; z-index: 30; transform: translate(-50%, -50%) scale(1.3); }
+        .dot.survive { background: var(--success); z-index: 15; }
+        .dot.survive-step { width: 18px; height: 18px; font-size: 10px; background: var(--success); }
+        .dot.selected-survive { background: #00ffa2; z-index: 30; }
+
+        /* サイドパネル */
+        .sidebar { width: 350px; background: var(--panel); padding: 20px; overflow-y: auto; border-left: 2px solid #333; }
+        .panel { display: none; }
+        .panel.active { display: block; }
+        
+        .form-group { margin-bottom: 15px; background: #3a3a48; padding: 10px; border-radius: 6px; }
+        label { display: block; font-size: 0.85rem; color: #ccc; margin-bottom: 5px; }
+        select, input[type="number"] { width: 90%; padding: 8px; border-radius: 4px; border: 1px solid #555; background: #222; color: #fff; }
+        
+        .tool-btn { display: block; width: 100%; padding: 10px; margin-bottom: 5px; background: #555; color: white; border: none; border-radius: 4px; cursor: pointer; text-align: left; font-weight: bold; }
+        .tool-btn.active { background: var(--secondary); border-left: 5px solid #fff; }
+        .tool-btn span { float: right; background: #222; padding: 2px 6px; border-radius: 10px; font-size: 0.8rem; }
+        
+        .action-btn { width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 4px; font-size: 1.1rem; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        .action-btn:disabled { background: #555; cursor: not-allowed; }
+        .secondary-btn { background: #457b9d; margin-top: 5px; font-size: 0.8rem; padding: 8px; }
+
+        .info-box { background: #3a3a48; padding: 12px; border-radius: 6px; margin-bottom: 10px; font-size: 0.9rem; }
+        .filter-highlight { border: 1px solid var(--warning); background: #222; }
+        .note-display { border-top: 1px solid #555; margin-top: 8px; padding-top: 8px; color: #eee; font-style: italic; white-space: pre-wrap; word-break: break-all; }
+
+        /* 軌跡の線のスタイル */
+        #map-svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 8; }
+        .path-line { stroke: var(--success); stroke-width: 3; stroke-dasharray: 5; fill: none; opacity: 0.6; }
+
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div style="display:flex; align-items:center; gap:15px;">
+            <h2 style="margin:0;">CC Analytics</h2>
+            <div class="map-status" id="auto-map-timer">計算中...</div>
+        </div>
+        <div class="tabs">
+            <button id="tab-input" class="active" onclick="switchMode('input')">🖊️ 入力</button>
+            <button id="tab-view" onclick="switchMode('view')">🔍️ 閲覧</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="map-section" id="map-viewport">
+            <div class="zoom-ctrl">
+                <button class="zoom-btn" onclick="toggleTheaterMode()" id="theater-btn">🔍 300%拡大モード</button>
+            </div>
+            <div id="map-container">
+                <div class="map-label-overlay" id="current-map-name">Map ?</div>
+                <img id="map-image" src="" alt="Map">
+                <div id="map-overlay">
+                    <svg id="map-svg"></svg>
+                </div>
+            </div>
+
+            <div style="margin-top:10px; display:flex; gap:20px; align-items:center;">
+                <label><input type="checkbox" id="auto-sync-map" checked> ゲーム内時間に同期</label>
+                <select id="manual-map-select" style="width:150px; padding:5px;">
+                    <option value="1">パライストラ</option>
+                    <option value="2">ヴォルカニック・ハート</option>
+                    <option value="3">東方絡繰御殿</option>
+                    <option value="4">ベイサイド・バトルグラウンド</option>
+                    <option value="5">クラウドナイン</option>
+                    <option value="6">レッド・サンズ</option>
+                </select>
+            </div>
+        </div>
+
+        <div id="panel-input" class="sidebar panel active">
+            <div class="form-group">
+                <label>自分のジョブ</label>
+                <select id="my-job" class="job-list-select" style="width:95%;"></select>
+                <div style="margin-top:10px;" class="checkbox-group">
+                    <label><input type="checkbox" id="my-guard"> 防御使用</label>
+                    <label><input type="checkbox" id="my-skill"> 自衛スキル有</label>
+                </div>
+                <label>MP残量</label>
+                <input type="number" id="my-mp" value="10000" step="500" >
+                <label>備考</label>
+                <textarea id="my-note" rows="4" maxlength="200" style="resize: vertical; width:95%;" placeholder="倒れた原因や状況メモ..."></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>配置ツール</label>
+                <button class="tool-btn active" id="tool-death" onclick="setTool('death')">💀 倒れた場所 <span>0/1</span></button>
+                <button class="tool-btn" id="tool-survive" onclick="setTool('survive')">🛡️ 逃走経路 (最大5点) <span>0/5</span></button>
+                <button class="tool-btn" id="tool-crystal" onclick="setTool('crystal')">💎 クリスタル <span>0/1</span></button>
+                <div style="display: flex; gap: 5px; margin-bottom: 5px;">
+                    <button class="tool-btn" id="tool-ally" style="margin-bottom:0;" onclick="setTool('ally')">🔵 味方 <span>0/4</span></button>
+                    <select id="ally-job" class="job-list-select" style="width:100px;"></select>
+                </div>
+                <div style="display: flex; gap: 5px;">
+                    <button class="tool-btn" id="tool-enemy" style="margin-bottom:0;" onclick="setTool('enemy')">🔴 敵 <span>0/5</span></button>
+                    <select id="enemy-job" class="job-list-select" style="width:100px;"></select>
+                </div>
+            </div>
+            <button class="action-btn" id="save-btn" onclick="saveRecord()" disabled>記録を保存</button>
+            <button class="action-btn" style="background:#555;" onclick="resetInput()">クリア</button>
+        </div>
+
+        <div id="panel-view" class="sidebar panel">
+            <h3>データ表示設定</h3>
+            <div class="form-group filter-highlight">
+                <label style="color:var(--warning); font-weight:bold;">🔍 ジョブで絞り込み</label>
+                <select id="view-filter-job" onchange="renderMap()">
+                    <option value="all">すべて表示</option>
+                    </select>
+            </div>
+
+            <div id="view-details" class="info-box" style="display:none; border-left:4px solid #ff00ff;">
+                <strong>デス詳細</strong><br>
+                <span id="v-time"></span> | <span id="v-job" style="color:var(--warning); font-weight:bold;"></span><br>
+                MP: <span id="v-mp"></span> | <span id="v-status"></span>
+                <div id="v-roster" style="margin-top:5px; font-size:0.8rem; border-top:1px solid #555; padding-top:5px;"></div>
+                <div id="v-note" class="note-display"></div>
+                <button onclick="editSelectedRecord()" style="margin-top:10px; width:100%; padding:8px; background:var(--secondary); color:white; border:none; border-radius:4px; cursor:pointer; font-size:0.8rem; font-weight:bold;">編集する</button>
+                <button onclick="deleteSelectedRecord()" style="margin-top:10px; width:100%; padding:5px; background:#e63946; color:white; border:none; border-radius:4px; cursor:pointer; font-size:0.8rem;">この記録を削除する</button>
+            </div>
+            
+            <div class="info-box">
+                現在のマップ記録: <span id="map-record-count" style="color:var(--primary); font-weight:bold;">0</span> 件
+            </div>
+            
+            <button class="action-btn secondary-btn" onclick="exportData()">全データJSON出力</button>
+            <button class="action-btn secondary-btn" onclick="importData()">データ読込</button>
+            <button class="action-btn" style="background:#555; font-size:0.8rem;" onclick="clearAllRecords()">全データ削除</button>
+        </div>
+    </div>
+
+    <script>
+        const JOB_LIST = ["ナイト", "戦士", "暗黒騎士", "ガンブレイカー", "白魔道士", "学者", "占星術師", "賢者", "モンク", "竜騎士", "忍者", "侍", "リーパー", "ヴァイパー", "吟遊詩人", "機工士", "踊り子", "黒魔道士", "召喚士", "赤魔道士", "ピクトマンサー"];
+        const BASE_TIME = new Date("2026-02-26T13:30:00").getTime();
+        const ROTATION_MINUTES = 90;
+
+        let records = [];
+        let currentMode = 'input';
+        let activeTool = 'death';
+        let selectedRecordId = null;
+        let inputData = { death: null, survivePath: [], crystal: null, allies: [], enemies: [] };
+
+        const viewport = document.getElementById('map-viewport');
+        const mapContainer = document.getElementById('map-container');
+        const overlay = document.getElementById('map-overlay');
+        const mapImg = document.getElementById('map-image');
+
+        window.onload = () => {
+            initJobs();
+            loadRecords();
+            updateRotation();
+            setInterval(updateRotation, 1000);
+            setupDraggable(); // ドラッグ機能の初期化
+        };
+        
+        /* マウスドラッグ移動ロジックを追加 */
+        function setupDraggable() {
+            let isDown = false;
+            let startX, startY, scrollLeft, scrollTop;
+
+            viewport.addEventListener('mousedown', (e) => {
+                //if (e.target.id !== 'map-viewport' && e.target.id !== 'map-image' && e.target.id !== 'map-overlay') return;
+                isDown = true;
+                startX = e.pageX - viewport.offsetLeft;
+                startY = e.pageY - viewport.offsetTop;
+                scrollLeft = viewport.scrollLeft;
+                scrollTop = viewport.scrollTop;
+            });
+            viewport.addEventListener('mouseleave', () => isDown = false);
+            viewport.addEventListener('mouseup', () => isDown = false);
+            viewport.addEventListener('mousemove', (e) => {
+                if (!isDown) return;
+                e.preventDefault();
+                const x = e.pageX - viewport.offsetLeft;
+                const y = e.pageY - viewport.offsetTop;
+                const walkX = (x - startX); 
+                const walkY = (y - startY);
+                viewport.scrollLeft = scrollLeft - walkX;
+                viewport.scrollTop = scrollTop - walkY;
+            });
+        }
+
+        /* シアターモードの切り替えとスクロール位置調整 */
+        function toggleTheaterMode() {
+            const body = document.body;
+            const btn = document.getElementById('theater-btn');
+            body.classList.toggle('theater-mode');
+            
+            if (body.classList.contains('theater-mode')) {
+                btn.innerText = "標準サイズに戻す";
+                // 拡大時に見失わないよう中心付近へ飛ばす
+                setTimeout(() => {
+                    viewport.scrollLeft = (mapContainer.offsetWidth / 2) - (viewport.offsetWidth / 2);
+                    viewport.scrollTop = (mapContainer.offsetHeight / 2) - (viewport.offsetHeight / 2);
+                }, 50);
+            } else {
+                btn.innerText = "🔍 拡大モード";
+            }
+        }
+
+        function initJobs() {
+            // 入力用セレクトボックス
+            document.querySelectorAll('.job-list-select').forEach(sel => {
+                JOB_LIST.forEach(j => { sel.add(new Option(j, j)); });
+            });
+            document.getElementById('my-job').value = "忍者";
+
+            // ★ 閲覧用フィルターセレクトボックス
+            const filterSel = document.getElementById('view-filter-job');
+            JOB_LIST.forEach(j => { filterSel.add(new Option(j, j)); });
+        }
+
+        function updateRotation() {
+            if (!document.getElementById('auto-sync-map').checked) return;
+            const now = Date.now();
+            const diffMs = now - BASE_TIME;
+            const diffMins = Math.floor(diffMs / (1000 * 60));
+            const rotationCount = Math.floor(diffMins / ROTATION_MINUTES);
+            let currentMapIdx = (5 + rotationCount) % 6;
+            if (currentMapIdx < 0) currentMapIdx += 6; 
+            const currentMapId = currentMapIdx + 1;
+            
+            const remainingMs = (ROTATION_MINUTES * 60 * 1000) - (diffMs % (ROTATION_MINUTES * 60 * 1000));
+            document.getElementById('auto-map-timer').innerText = `次まで: ${Math.floor(remainingMs/60000)}:${Math.floor((remainingMs%60000)/1000).toString().padStart(2,'0')}`;
+            
+            if (document.getElementById('manual-map-select').value != currentMapId || mapImg.getAttribute('src') === "") {
+                document.getElementById('manual-map-select').value = currentMapId;
+                changeMap(currentMapId);
+            }
+        }
+
+        document.getElementById('manual-map-select').onchange = (e) => {
+            document.getElementById('auto-sync-map').checked = false;
+            changeMap(e.target.value);
+        };
+
+        function changeMap(id) {
+            document.getElementById('current-map-name').innerText = `Map ${id}`;
+            mapImg.src = `img/map${id}.png`; 
+            mapImg.onerror = () => { mapImg.src = `https://via.placeholder.com/900x500/333333/cccccc?text=img/map${id}.png+not+found`; };
+            selectedRecordId = null;
+            document.getElementById('view-details').style.display = 'none';
+            renderMap();
+        }
+        
+        /* ドラッグとクリックを判別するための処理 */
+        mapContainer.addEventListener('mousedown', (e) => {
+            mapContainer.dataset.clickX = e.clientX;
+            mapContainer.dataset.clickY = e.clientY;
+        });
+
+        function setTool(tool) {
+            activeTool = tool;
+            document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(`tool-${tool}`).classList.add('active');
+        }
+
+        mapContainer.addEventListener('click', (e) => {
+            if (currentMode !== 'input') return;
+            // 5ピクセル以上マウスが動いていたらドラッグとみなして配置をキャンセル
+            if (Math.abs(e.clientX - mapContainer.dataset.clickX) > 5 || Math.abs(e.clientY - mapContainer.dataset.clickY) > 5) return;
+            const rect = mapContainer.getBoundingClientRect();
+            const x = ((e.clientX - rect.left) / rect.width) * 100;
+            const y = ((e.clientY - rect.top) / rect.height) * 100;
+            if (activeTool === 'death') inputData.death = {x, y};
+            else if (activeTool === 'survive') {
+                if (inputData.survivePath.length < 5) {
+                inputData.survivePath.push({x, y});
+                //inputData.death = null; // 逃走を記録するときはデスをクリア
+                }
+            }
+            else if (activeTool === 'crystal') inputData.crystal = {x, y};
+            else if (activeTool === 'ally' && inputData.allies.length < 4) 
+                inputData.allies.push({x, y, job: document.getElementById('ally-job').value});
+            else if (activeTool === 'enemy' && inputData.enemies.length < 5) 
+                inputData.enemies.push({x, y, job: document.getElementById('enemy-job').value});
+            updateToolCounts();
+            renderMap();
+            document.getElementById('save-btn').disabled = !(inputData.death || inputData.survivePath.length > 0);
+        });
+
+        function updateToolCounts() {
+            document.querySelector('#tool-death span').innerText = `${inputData.death?1:0}/1`;
+            document.querySelector('#tool-crystal span').innerText = `${inputData.crystal?1:0}/1`;
+            document.querySelector('#tool-ally span').innerText = `${inputData.allies.length}/4`;
+            document.querySelector('#tool-enemy span').innerText = `${inputData.enemies.length}/5`;
+            document.querySelector('#tool-survive span').innerText = `${inputData.survivePath.length}/5`;
+        }
+
+        function saveRecord() {
+            const record = {
+                id: Date.now(),
+                mapId: document.getElementById('manual-map-select').value,
+                date: new Date().toLocaleString(),
+                myJob: document.getElementById('my-job').value,
+                mp: document.getElementById('my-mp').value,
+                guard: document.getElementById('my-guard').checked,
+                skill: document.getElementById('my-skill').checked,
+                death: inputData.death,
+                crystal: inputData.crystal,
+                allies: [...inputData.allies],
+                enemies: [...inputData.enemies],
+                note: document.getElementById('my-note').value,
+                survivePath: [...inputData.survivePath]
+            };
+            records.push(record);
+            localStorage.setItem('cc_death_records', JSON.stringify(records));
+            resetInput();
+            alert("保存しました");
+        }
+
+        //画面表示
+        function renderMap() {
+            overlay.innerHTML = '<svg id="map-svg"></svg>'; // SVGをリセット
+            const svg = document.getElementById('map-svg');
+            const currentMapId = document.getElementById('manual-map-select').value;
+            const filterJob = document.getElementById('view-filter-job').value;
+            //入力モード
+            if (currentMode === 'input') {
+                drawPath(inputData.survivePath, svg); 
+                inputData.survivePath.forEach((p, i) => {
+                    createDot(p.x, p.y, 'dot survive survive-step', i + 1, 'survive', i);
+                });
+                inputData.survivePath.forEach((p, i) => createDot(p.x, p.y, 'dot survive survive-step', i + 1, 'survive', i));
+                if (inputData.death) createDot(inputData.death.x, inputData.death.y, 'dot death', '💀');
+                if (inputData.crystal) createDot(inputData.crystal.x, inputData.crystal.y, 'dot crystal', 'C');
+                // indexを渡すことで、特定の味方/敵を削除可能にする
+                inputData.allies.forEach((a, i) => createDot(a.x, a.y, 'dot ally', a.job[0], 'ally', i));
+                inputData.enemies.forEach((e, i) => createDot(e.x, e.y, 'dot enemy', e.job[0], 'enemy', i));
+            } else { //閲覧モード
+                // 1.マップでフィルタ
+                let mapRecords = records.filter(r => r.mapId == currentMapId);
+                
+                // 2.ジョブフィルターが「all」でなければ、ジョブでさらにフィルタ
+                if (filterJob !== 'all') {
+                    mapRecords = mapRecords.filter(r => r.myJob === filterJob);
+                }
+                
+                document.getElementById('map-record-count').innerText = mapRecords.length;
+
+                if (selectedRecordId) {
+                    const r = records.find(x => x.id === selectedRecordId);
+                    if (r && r.survivePath) {
+                        drawPath(r.survivePath, svg);
+                        r.survivePath.forEach((p, i) => createDot(p.x, p.y, 'dot survive survive-step', i + 1));
+                        const d = createDot(r.survivePath[0].x, r.survivePath[0].y, 'dot selected-survive', '1');
+                        d.onclick = () => selectRecord(r.id);
+                    }
+                    
+                    if (r) {
+                        const d = createDot(r.death.x, r.death.y, 'dot selected-death', '💀');
+                        d.onclick = () => selectRecord(r.id);
+                        if (r.crystal) createDot(r.crystal.x, r.crystal.y, 'dot crystal', 'C');
+                        r.allies.forEach(a => createDot(a.x, a.y, 'dot ally', a.job[0]));
+                        r.enemies.forEach(e => createDot(e.x, e.y, 'dot enemy', e.job[0]));
+                    }
+                } else {
+                    mapRecords.forEach(r => {
+                        if (r.death) {
+                            createDot(r.death.x, r.death.y, 'dot view-mode-death', '💀').onclick = () => selectRecord(r.id);
+                        } else if (r.survivePath && r.survivePath.length > 0) {
+                            // 逃走成功の初撃地点を盾アイコンで表示
+                            createDot(r.survivePath[0].x, r.survivePath[0].y, 'dot survive', '🛡️').onclick = () => selectRecord(r.id);
+                        }
+                    });
+                }
+            }
+        }
+
+        // 線を引くための共通関数
+        function drawPath(path, svgElement) {
+            if (!path || path.length < 2) return;
+            let points = "";
+            path.forEach(p => {
+                points += `${p.x},${p.y} `;
+            });
+            const polyline = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
+            polyline.setAttribute("points", points);
+            polyline.setAttribute("class", "path-line");
+            // %単位をSVG内で扱うための設定（重要）
+            polyline.setAttribute("style", "vector-effect: non-scaling-stroke;");
+            
+            // SVGのviewBoxを100x100に固定することで座標計算を楽にする
+            svgElement.setAttribute("viewBox", "0 0 100 100");
+            svgElement.setAttribute("preserveAspectRatio", "none");
+            svgElement.appendChild(polyline);
+        }
+
+        //DOT描画処理
+        function createDot(x, y, className, text, type, index) {
+            const el = document.createElement('div');
+            el.className = className;
+            el.style.left = `${x}%`; 
+            el.style.top = `${y}%`;
+            el.innerText = text;
+
+            // 入力モードの時だけ、右クリックで個別削除できるようにする
+            if (currentMode === 'input') {
+                el.oncontextmenu = (e) => {
+                    e.preventDefault(); // 右クリックメニューを出さない
+                    if (type === 'ally') {
+                        inputData.allies.splice(index, 1);
+                    } else if (type === 'enemy') {
+                        inputData.enemies.splice(index, 1);
+                    } else if (type === 'death') {
+                        inputData.death = null;
+                    } else if (type === 'crystal') {
+                        inputData.crystal = null;
+                    }else if (type === 'survive') {
+                        //クリックした地点ではなく、最後に追加した地点から消す（経路を戻る）
+                        inputData.survivePath.pop();
+                    }
+                    updateToolCounts();
+                    renderMap();
+                    return false;
+                };
+                // スマホ等のために「長押し」のヒントを出すならタイトル属性を追加
+                el.title = "右クリックで削除 / 経路を1つ戻す";
+            }
+
+            overlay.appendChild(el);
+            return el;
+        }
+
+        function selectRecord(id) {
+            if (selectedRecordId === id) {
+                selectedRecordId = null;
+                document.getElementById('view-details').style.display = 'none';
+            } else {
+                selectedRecordId = id;
+                const r = records.find(x => x.id === id);
+                document.getElementById('view-details').style.display = 'block';
+                document.getElementById('v-time').innerText = r.date;
+                document.getElementById('v-job').innerText = r.myJob;
+                document.getElementById('v-mp').innerText = r.mp;
+                document.getElementById('v-status').innerText = (r.guard?"防○":"防×") + "/" + (r.skill?"技○":"技×");
+                document.getElementById('v-roster').innerHTML = `敵: ${r.enemies.map(e=>e.job).join(',')}<br>味: ${r.allies.map(a=>a.job).join(',')}`;
+                document.getElementById('v-note').innerText = r.note || "(備考なし)";
+            }
+            renderMap();
+        }
+
+        function switchMode(m) {
+            currentMode = m;
+            document.getElementById('tab-input').classList.toggle('active', m==='input');
+            document.getElementById('tab-view').classList.toggle('active', m==='view');
+            document.getElementById('panel-input').classList.toggle('active', m==='input');
+            document.getElementById('panel-view').classList.toggle('active', m==='view');
+            selectedRecordId = null;
+            renderMap();
+        }
+
+        function resetInput() {
+            inputData = { death: null, crystal: null, allies: [], enemies: [], survivePath: []};
+            updateToolCounts();
+            renderMap();
+            document.getElementById('save-btn').disabled = true;
+        }
+
+        function loadRecords() {
+            const saved = localStorage.getItem('cc_death_records');
+            if (saved) records = JSON.parse(saved);
+        }
+
+        function exportData() {
+            const blob = new Blob([JSON.stringify(records)], {type: 'application/json'});
+            const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+            a.download = `cc_all_data.json`; a.click();
+        }
+
+        function importData() {
+            const inp = document.createElement('input'); inp.type = 'file';
+            inp.onchange = e => {
+                const reader = new FileReader();
+                reader.onload = f => {
+                    records = JSON.parse(f.target.result);
+                    localStorage.setItem('cc_death_records', JSON.stringify(records));
+                    renderMap();
+                };
+                reader.readAsText(e.target.files[0]);
+            };
+            inp.click();
+        }
+        
+        /* 選択中のレコードを入力画面にコピーして編集モードにする関数 */
+        function editSelectedRecord() {
+            if (!selectedRecordId) return;
+            
+            // 1. 対象のレコードを探す
+            const r = records.find(x => x.id === selectedRecordId);
+            if (!r) return;
+
+            if (!confirm("この内容を入力画面にコピーして編集しますか？\n（現在入力中の内容は上書きされます）")) return;
+
+            // 2. データを入力画面用の変数(inputData)にコピー
+            inputData.death = r.death ? { ...r.death } : null;
+            inputData.crystal = r.crystal ? { ...r.crystal } : null;
+            inputData.allies = r.allies.map(a => ({ ...a }));
+            inputData.enemies = r.enemies.map(e => ({ ...e }));
+            inputData.survivePath = r.survivePath ? r.survivePath.map(p => ({ ...p })) : [];
+
+            // 3. フォームの各値をセット
+            document.getElementById('my-job').value = r.myJob;
+            document.getElementById('my-mp').value = r.mp;
+            document.getElementById('my-guard').checked = r.guard;
+            document.getElementById('my-skill').checked = r.skill;
+            document.getElementById('manual-map-select').value = r.mapId;
+            document.getElementById('my-note').value = r.note || "";
+            // 自動同期はオフにする
+            document.getElementById('auto-sync-map').checked = false;
+
+            // 4. 元のデータを削除（「編集」なので、保存時に新しく作り直すため）
+            // 残したい場合はこの行をコメントアウトしてください。
+            records = records.filter(x => x.id !== selectedRecordId);
+            localStorage.setItem('cc_death_records', JSON.stringify(records));
+
+            // 5. 画面の更新
+            updateToolCounts();
+            switchMode('input'); // 入力画面に切り替え
+            changeMap(r.mapId);  // マップ画像を切り替え
+            
+            alert("入力画面にコピーしました。修正して「記録を保存」を押してください。");
+        }
+        
+        /* 選択中のレコードを削除する関数 */
+        function deleteSelectedRecord() {
+            if (!selectedRecordId) return;
+            
+            if (confirm("この記録を削除してもよろしいですか？")) {
+                // 現在のIDと一致しないものだけを残す（＝選択中のものを削除）
+                records = records.filter(r => r.id !== selectedRecordId);
+                
+                // ローカルストレージを更新
+                localStorage.setItem('cc_death_records', JSON.stringify(records));
+                
+                // 選択状態を解除して詳細パネルを隠す
+                selectedRecordId = null;
+                document.getElementById('view-details').style.display = 'none';
+                
+                // マップを再描画
+                renderMap();
+                alert("削除しました");
+            }
+        }
+        
+        function clearAllRecords() {
+            if(confirm("全消去しますか？")) { records = []; localStorage.removeItem('cc_death_records'); renderMap(); }
+        }
+    </script>
+</body>
+</html>
