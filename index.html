@@ -440,16 +440,17 @@
 
                 if (selectedRecordId) {
                     const r = records.find(x => x.id === selectedRecordId);
-                    if (r && r.survivePath) {
-                        drawPath(r.survivePath, svg);
-                        r.survivePath.forEach((p, i) => createDot(p.x, p.y, 'dot survive survive-step', i + 1));
-                        const d = createDot(r.survivePath[0].x, r.survivePath[0].y, 'dot selected-survive', '1');
-                        d.onclick = () => selectRecord(r.id);
-                    }
-                    
-                    if (r) {
-                        const d = createDot(r.death.x, r.death.y, 'dot selected-death', '💀');
-                        d.onclick = () => selectRecord(r.id);
+                    if(r){
+                        if (r.survivePath) {
+                            drawPath(r.survivePath, svg);
+                            r.survivePath.forEach((p, i) => createDot(p.x, p.y, 'dot survive survive-step', i + 1));
+                            const d = createDot(r.survivePath[0].x, r.survivePath[0].y, 'dot selected-survive', '1');
+                            d.onclick = () => selectRecord(r.id);
+                        }
+                        if (r.death) {
+                            const d = createDot(r.death.x, r.death.y, 'dot selected-death', '💀');
+                            d.onclick = () => selectRecord(r.id);
+                        }
                         if (r.crystal) createDot(r.crystal.x, r.crystal.y, 'dot crystal', 'C');
                         r.allies.forEach(a => createDot(a.x, a.y, 'dot ally', a.job[0]));
                         r.enemies.forEach(e => createDot(e.x, e.y, 'dot enemy', e.job[0]));
