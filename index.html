@@ -15,6 +15,18 @@
         .map-status { background: #333; padding: 5px 15px; border-radius: 20px; font-size: 0.9rem; border: 1px solid var(--warning); }
         .tabs button { background: #444; color: white; border: none; padding: 10px 20px; margin-right: 10px; cursor: pointer; border-radius: 4px; font-weight: bold; }
         .tabs button.active { background: var(--primary); }
+        /* フッターのスタイル */
+        .app-footer { background: #151519; padding: 8px 20px; display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; color: #888; border-top: 1px solid #333; }
+        .app-footer a { color: var(--secondary); text-decoration: none; font-weight: bold; }
+        .app-footer a:hover { text-decoration: underline; }
+        /* モーダル（ヘルプ画面）のスタイル */
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.8); }
+        .modal-content { background-color: var(--panel); margin: 10% auto; padding: 25px; border-radius: 10px; width: 85%; max-width: 500px; max-height: 80vh; overflow-y: auto; position: relative; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
+        .close-btn { position: absolute; right: 20px; top: 15px; font-size: 28px; font-weight: bold; color: #aaa; cursor: pointer; }
+        .help-section { margin-bottom: 20px; }
+        .help-section h3 { color: var(--warning); border-left: 4px solid var(--warning); padding-left: 10px; font-size: 1rem; }
+        .help-section ul { padding-left: 20px; font-size: 0.9rem; color: #ccc; }
+        .help-section li { margin-bottom: 8px; }
 
         .container { display: flex; flex: 1; overflow-y: auto; }
         
@@ -70,17 +82,53 @@
         /* 軌跡の線のスタイル */
         #map-svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 8; }
         .path-line { stroke: var(--success); stroke-width: 3; stroke-dasharray: 5; fill: none; opacity: 0.6; }
-/* --- スマホ・横幅が狭い時（900px以下）の挙動 --- */
-@media (max-width: 900px) {
-    .container { flex-direction: column; overflow-y: visible;}
-    .map-section { flex: none; /* マップの高さを固定せず内容に合わせる */ width: 100%; padding: 5px; }
-    #map-image { max-width: 100%; /* 横幅いっぱいに広げる */ height: auto; }
-    .sidebar { width: 100%; box-sizing: border-box; border-left: none; border-top: 2px solid #333; overflow-y: visible; /* サイドバー内のスクロールを解除 */ }
-    /* 入力フォームのパーツも少し大きくして押しやすく */
-    .action-btn { padding: 15px; }
-}
+        /* --- スマホ・横幅が狭い時（900px以下）の挙動 --- */
+        @media (max-width: 900px) {
+        .container { flex-direction: column; overflow-y: visible;}
+        .map-section { flex: none; /* マップの高さを固定せず内容に合わせる */ width: 100%; padding: 5px; }
+        #map-image { max-width: 100%; /* 横幅いっぱいに広げる */ height: auto; }
+        .sidebar { width: 100%; box-sizing: border-box; border-left: none; border-top: 2px solid #333; overflow-y: visible; /* サイドバー内のスクロールを解除 */ }
+        /* 入力フォームのパーツも少し大きくして押しやすく */
+        .action-btn { padding: 15px; }
+        }
     </style>
 </head>
+    
+<footer class="app-footer">
+        <a href="javascript:void(0)" onclick="openHelp()">📖 使い方・ヘルプ</a>
+        <span>CC Analytics v1.2</span>
+</footer>
+
+    <div id="help-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeHelp()">&times;</span>
+            <h2>📖 使い方ガイド</h2>
+            <hr>
+            <div class="help-section">
+                <h3>🖊️ 入力モード</h3>
+                <ul>
+                    <li><strong>記録：</strong>マップ上の「倒れた場所」をクリック。💀マークが出たら、MPや備考を入力して「記録を保存」を押します。</li>
+                    <li><strong>自動切替：</strong>現在の時間に合わせたマップが自動で選ばれます。手動で切り替えた場合はチェックが外れます。</li>
+                </ul>
+            </div>
+            <div class="help-section">
+                <h3>👁️ 閲覧モード</h3>
+                <ul>
+                    <li><strong>詳細確認：</strong>マップ上の💀をクリックすると、その時のMPや備考を表示します。</li>
+                    <li><strong>絞り込み：</strong>ジョブフィルターで、特定のジョブのデス位置だけを確認できます。</li>
+                </ul>
+            </div>
+            <div class="help-section">
+                <h3>💾 データの管理</h3>
+                <ul>
+                    <li>データはブラウザ（LocalStorage）に保存されます。</li>
+                    <li><strong>JSON出力：</strong>PCの買い替えやブラウザ清掃に備え、定期的にバックアップを推奨します。</li>
+                </ul>
+            </div>
+            <button class="action-btn" style="background:#555;" onclick="closeHelp()">閉じる</button>
+        </div>
+    </div>
+    
 <body>
 
     <div class="header">
@@ -597,6 +645,23 @@
         
         function clearAllRecords() {
             if(confirm("全消去しますか？")) { records = []; localStorage.removeItem('cc_death_records'); renderMap(); }
+        }
+
+        // ヘルプモーダルの開閉
+        function openHelp() {
+            document.getElementById('help-modal').style.display = 'block';
+        }
+
+        function closeHelp() {
+            document.getElementById('help-modal').style.display = 'none';
+        }
+
+        // モーダルの外側をクリックしたら閉じる設定
+        window.onclick = function(event) {
+            const modal = document.getElementById('help-modal');
+            if (event.target == modal) {
+                closeHelp();
+            }
         }
     </script>
 </body>
