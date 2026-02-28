@@ -441,7 +441,7 @@
                 if (selectedRecordId) {
                     const r = records.find(x => x.id === selectedRecordId);
                     if(r){
-                        if (r.survivePath) {
+                        if (r.survivePath && r.survivePath.length > 0) {
                             drawPath(r.survivePath, svg);
                             r.survivePath.forEach((p, i) => createDot(p.x, p.y, 'dot survive survive-step', i + 1));
                             const d = createDot(r.survivePath[0].x, r.survivePath[0].y, 'dot selected-survive', '1');
