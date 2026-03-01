@@ -48,7 +48,7 @@
         /* ドットスタイル */
         .dot { position: absolute; width: 24px; height: 24px; border-radius: 50%; transform: translate(-50%, -50%); display: flex; justify-content: center; align-items: center; font-size: 11px; font-weight: bold; color: white; border: 2px solid #fff; box-shadow: 0 0 5px rgba(0,0,0,0.8); cursor: pointer; z-index: 10; }
         .dot.death { background: var(--primary); z-index: 20; }
-        .dot.crystal { background: var(--warning); color: #333; border-color: #333; width: 40px; height: 40px; /* 縦幅を大きく */ font-size: 15px; z-index: 5; /* 他のドットの下に表示されるように調整 */ }
+        .dot.crystal { background: var(--warning); color: #333; border-color: #333; width: 40px; height: 40px; font-size: 15px; z-index: 5; }
         .dot.ally { background: #5cde4e; }
         .dot.enemy { background: purple; }
         .dot.view-mode-death { background: var(--primary); opacity: 0.7; transition: 0.2s; }
@@ -65,7 +65,7 @@
         
         .form-group { margin-bottom: 15px; background: #3a3a48; padding: 10px; border-radius: 6px; }
         label { display: block; font-size: 0.85rem; color: #ccc; margin-bottom: 5px; }
-        select, input[type="number"] { width: 90%; padding: 8px; border-radius: 4px; border: 1px solid #555; background: #222; color: #fff; }
+        select, input[type="number"], input[type="text"] { width: 90%; padding: 8px; border-radius: 4px; border: 1px solid #555; background: #222; color: #fff; }
         
         .tool-btn { display: block; width: 100%; padding: 10px; margin-bottom: 5px; background: #555; color: white; border: none; border-radius: 4px; cursor: pointer; text-align: left; font-weight: bold; }
         .tool-btn.active { background: var(--secondary); border-left: 5px solid #fff; }
@@ -82,13 +82,18 @@
         /* 軌跡の線のスタイル */
         #map-svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 8; }
         .path-line { stroke: var(--success); stroke-width: 3; stroke-dasharray: 5; fill: none; opacity: 0.6; }
+        
+        /* ラジオボタンのスタイル */
+        .radio-group { margin: 10px 0; }
+        .radio-group label { display: inline-block; margin-right: 15px; margin-bottom: 0; }
+        .radio-group input[type="radio"] { margin-right: 5px; }
+        
         /* --- スマホ・横幅が狭い時（900px以下）の挙動 --- */
         @media (max-width: 900px) {
         .container { flex-direction: column; overflow-y: visible;}
-        .map-section { flex: none; /* マップの高さを固定せず内容に合わせる */ width: 100%; padding: 5px; }
-        #map-image { max-width: 100%; /* 横幅いっぱいに広げる */ height: auto; }
-        .sidebar { width: 100%; box-sizing: border-box; border-left: none; border-top: 2px solid #333; overflow-y: visible; /* サイドバー内のスクロールを解除 */ }
-        /* 入力フォームのパーツも少し大きくして押しやすく */
+        .map-section { flex: none; width: 100%; padding: 5px; }
+        #map-image { max-width: 100%; height: auto; }
+        .sidebar { width: 100%; box-sizing: border-box; border-left: none; border-top: 2px solid #333; overflow-y: visible; }
         .action-btn { padding: 15px; }
         }
     </style>
@@ -102,6 +107,9 @@
             <div class="help-section">
                 <h3>🖊️ 入力モード</h3>
                 <ul>
+                    <li><strong>試合ID：</strong>試合ごとに一意のIDを入力します。</li>
+                    <li><strong>シリーズ番号：</strong>一度入力するとそれ以降は同じ値が使われます。</li>
+                    <li><strong>勝敗：</strong>試合の結果を記録します（勝ち / 敗け / 不明）。</li>
                     <li><strong>記録：</strong>マップ上の「倒れた場所」をクリック。💀マークが出たら、MPや備考を入力して「記録を保存」を押します。</li>
                     <li><strong>自動切替：</strong>現在の時間に合わせたマップが自動で選ばれます。手動で切り替えた場合はチェックが外れます。</li>
                 </ul>
@@ -110,7 +118,7 @@
                 <h3>👁️ 閲覧モード</h3>
                 <ul>
                     <li><strong>詳細確認：</strong>マップ上の💀をクリックすると、その時のMPや備考を表示します。</li>
-                    <li><strong>絞り込み：</strong>ジョブフィルターで、特定のジョブのデス位置だけを確認できます。</li>
+                    <li><strong>絞り込み：</strong>試合ID、シリーズ番号、勝敗、ジョブフィルターで、特定の条件のデス位置だけを確認できます。</li>
                 </ul>
             </div>
             <div class="help-section">
@@ -165,6 +173,20 @@
 
         <div id="panel-input" class="sidebar panel active">
             <div class="form-group">
+                <label>🎮 試合情報</label>
+                <label style="margin-top:10px;">シリーズ番号</label>
+                <input type="number" id="series-number" value="18" min="18" step="1">
+                <label>試合ID <span style="color:#e63946;">*必須</span></label>
+                <input type="text" id="match-id" placeholder="例: M001, 決勝戦など" maxlength="50">
+                <label style="margin-top:10px;">勝敗</label>
+                <div class="radio-group">
+                    <label><input type="radio" name="match-result" value="win"> 勝ち</label>
+                    <label><input type="radio" name="match-result" value="lose"> 敗け</label>
+                    <label><input type="radio" name="match-result" value="unknown" checked> 不明</label>
+                </div>
+            </div>
+
+            <div class="form-group">
                 <label>自分のジョブ</label>
                 <select id="my-job" class="job-list-select" style="width:95%;"></select>
                 <div style="margin-top:10px;" class="checkbox-group">
@@ -198,14 +220,41 @@
         <div id="panel-view" class="sidebar panel">
             <h3>データ表示設定</h3>
             <div class="form-group filter-highlight">
+                <label style="color:var(--warning); font-weight:bold;">📊 シリーズ番号で絞り込み</label>
+                <select id="view-filter-series" onchange="renderMap()">
+                    <option value="all">すべて表示</option>
+                </select>
+            </div>
+            
+            <div class="form-group filter-highlight">
+                <label style="color:var(--warning); font-weight:bold;">🎮 試合IDで絞り込み</label>
+                <select id="view-filter-match" onchange="renderMap()">
+                    <option value="all">すべて表示</option>
+                    <option value="no-id">試合ID なし</option>
+                </select>
+            </div>
+
+            <div class="form-group filter-highlight">
+                <label style="color:var(--warning); font-weight:bold;">🏆 勝敗で絞り込み</label>
+                <select id="view-filter-result" onchange="renderMap()">
+                    <option value="all">すべて表示</option>
+                    <option value="win">勝ち</option>
+                    <option value="lose">敗け</option>
+                    <option value="unknown">不明</option>
+                </select>
+            </div>
+
+            <div class="form-group filter-highlight">
                 <label style="color:var(--warning); font-weight:bold;">🔍 ジョブで絞り込み</label>
                 <select id="view-filter-job" onchange="renderMap()">
                     <option value="all">すべて表示</option>
-                    </select>
+                </select>
             </div>
 
             <div id="view-details" class="info-box" style="display:none; border-left:4px solid #ff00ff;">
                 <strong>デス詳細</strong><br>
+                <span id="v-match-series" style="color:var(--warning); font-weight:bold;"></span><br>
+                <span id="v-result"></span><br>
                 <span id="v-time"></span> | <span id="v-job" style="color:var(--warning); font-weight:bold;"></span><br>
                 MP: <span id="v-mp"></span> | <span id="v-status"></span>
                 <div id="v-roster" style="margin-top:5px; font-size:0.8rem; border-top:1px solid #555; padding-top:5px;"></div>
@@ -230,7 +279,7 @@
     </footer>
     
     <script>
-        const JOB_LIST = ["ナイト", "戦士", "暗黒騎士", "ガンブレイカー", "白魔道士", "学者", "占星術師", "賢者", "モンク", "竜騎士", "忍者", "侍", "リーパー", "ヴァイパー", "吟遊詩人", "機工士", "踊り子", "黒魔道士", "召喚士", "赤魔道士", "ピクトマンサー"];
+        const JOB_LIST = ["ナイト", "戦士", "暗黒騎士", "ガンブレイカー", "白魔道士", "学者", "占星術師", "賢者", "モンク", "竜騎士", "忍者", "侍", "リーパー", "ヴァイパー", "吟遊詩��", "機工士", "踊り子", "黒魔道士", "召喚士", "赤魔道士", "ピクトマンサー"];
         const BASE_TIME = new Date("2026-02-26T13:30:00").getTime();
         const ROTATION_MINUTES = 90;
 
@@ -248,18 +297,35 @@
         window.onload = () => {
             initJobs();
             loadRecords();
+            loadSeriesNumber();
+            updateMatchIdFilter();
+            updateSeriesFilter();
             updateRotation();
             setInterval(updateRotation, 1000);
-            setupDraggable(); // ドラッグ機能の初期化
+            setupDraggable();
+            
+            // シリーズ番号変更時に localStorage に保存
+            document.getElementById('series-number').addEventListener('change', (e) => {
+                localStorage.setItem('cc_series_number', e.target.value);
+            });
+            
+            // 試合ID変更時に保存ボタンの有効化チェック
+            document.getElementById('match-id').addEventListener('input', updateSaveButtonState);
         };
         
-        /* マウスドラッグ移動ロジックを追加 */
+        function loadSeriesNumber() {
+            const saved = localStorage.getItem('cc_series_number');
+            if (saved) {
+                document.getElementById('series-number').value = saved;
+            }
+        }
+        
+        /* マウスドラッグ移動ロジック */
         function setupDraggable() {
             let isDown = false;
             let startX, startY, scrollLeft, scrollTop;
 
             viewport.addEventListener('mousedown', (e) => {
-                //if (e.target.id !== 'map-viewport' && e.target.id !== 'map-image' && e.target.id !== 'map-overlay') return;
                 isDown = true;
                 startX = e.pageX - viewport.offsetLeft;
                 startY = e.pageY - viewport.offsetTop;
@@ -280,7 +346,7 @@
             });
         }
 
-        /* シアターモードの切り替えとスクロール位置調整 */
+        /* シアターモードの切り替え */
         function toggleTheaterMode() {
             const body = document.body;
             const btn = document.getElementById('theater-btn');
@@ -288,7 +354,6 @@
             
             if (body.classList.contains('theater-mode')) {
                 btn.innerText = "標準サイズに戻す";
-                // 拡大時に見失わないよう中心付近へ飛ばす
                 setTimeout(() => {
                     viewport.scrollLeft = (mapContainer.offsetWidth / 2) - (viewport.offsetWidth / 2);
                     viewport.scrollTop = (mapContainer.offsetHeight / 2) - (viewport.offsetHeight / 2);
@@ -299,15 +364,57 @@
         }
 
         function initJobs() {
-            // 入力用セレクトボックス
             document.querySelectorAll('.job-list-select').forEach(sel => {
                 JOB_LIST.forEach(j => { sel.add(new Option(j, j)); });
             });
             document.getElementById('my-job').value = "忍者";
 
-            // ★ 閲覧用フィルターセレクトボックス
             const filterSel = document.getElementById('view-filter-job');
             JOB_LIST.forEach(j => { filterSel.add(new Option(j, j)); });
+        }
+
+        function updateMatchIdFilter() {
+            const filterSel = document.getElementById('view-filter-match');
+            const matchIds = new Set();
+            
+            const existingOptions = Array.from(filterSel.options).map(opt => opt.value);
+            
+            records.forEach(r => {
+                if (r.matchId && r.matchId.trim()) {
+                    matchIds.add(r.matchId);
+                }
+            });
+            
+            const sortedMatchIds = Array.from(matchIds).sort();
+            
+            while (filterSel.options.length > 2) {
+                filterSel.remove(2);
+            }
+            
+            sortedMatchIds.forEach(matchId => {
+                filterSel.add(new Option(matchId, matchId));
+            });
+        }
+
+        function updateSeriesFilter() {
+            const filterSel = document.getElementById('view-filter-series');
+            const seriesNumbers = new Set();
+            
+            records.forEach(r => {
+                if (r.seriesNumber) {
+                    seriesNumbers.add(r.seriesNumber);
+                }
+            });
+            
+            const sortedSeries = Array.from(seriesNumbers).map(s => parseInt(s)).sort((a, b) => a - b);
+            
+            while (filterSel.options.length > 1) {
+                filterSel.remove(1);
+            }
+            
+            sortedSeries.forEach(seriesNum => {
+                filterSel.add(new Option(`S ${seriesNum}`, seriesNum));
+            });
         }
 
         function updateRotation() {
@@ -343,7 +450,7 @@
             renderMap();
         }
         
-        /* ドラッグとクリックを判別するための処理 */
+        /* ドラッグとクリックを判別 */
         mapContainer.addEventListener('mousedown', (e) => {
             mapContainer.dataset.clickX = e.clientX;
             mapContainer.dataset.clickY = e.clientY;
@@ -357,7 +464,6 @@
 
         mapContainer.addEventListener('click', (e) => {
             if (currentMode !== 'input') return;
-            // 5ピクセル以上マウスが動いていたらドラッグとみなして配置をキャンセル
             if (Math.abs(e.clientX - mapContainer.dataset.clickX) > 5 || Math.abs(e.clientY - mapContainer.dataset.clickY) > 5) return;
             const rect = mapContainer.getBoundingClientRect();
             const x = ((e.clientX - rect.left) / rect.width) * 100;
@@ -366,7 +472,6 @@
             else if (activeTool === 'survive') {
                 if (inputData.survivePath.length < 5) {
                 inputData.survivePath.push({x, y});
-                //inputData.death = null; // 逃走を記録するときはデスをクリア
                 }
             }
             else if (activeTool === 'crystal') inputData.crystal = {x, y};
@@ -376,7 +481,7 @@
                 inputData.enemies.push({x, y, job: document.getElementById('enemy-job').value});
             updateToolCounts();
             renderMap();
-            document.getElementById('save-btn').disabled = !(inputData.death || inputData.survivePath.length > 0);
+            updateSaveButtonState();
         });
 
         function updateToolCounts() {
@@ -387,9 +492,35 @@
             document.querySelector('#tool-survive span').innerText = `${inputData.survivePath.length}/5`;
         }
 
+        function updateSaveButtonState() {
+            const hasData = inputData.death || inputData.survivePath.length > 0;
+            const hasMatchId = document.getElementById('match-id').value.trim() !== '';
+            document.getElementById('save-btn').disabled = !(hasData && hasMatchId);
+        }
+
+        function getResultLabel(result) {
+            switch(result) {
+                case 'win': return '勝ち';
+                case 'lose': return '敗け';
+                default: return '不明';
+            }
+        }
+
         function saveRecord() {
+            const matchId = document.getElementById('match-id').value.trim();
+            
+            if (!matchId) {
+                alert('試合IDを入力してください');
+                return;
+            }
+            
+            const selectedResult = document.querySelector('input[name="match-result"]:checked').value;
+            
             const record = {
                 id: Date.now(),
+                matchId: matchId,
+                seriesNumber: parseInt(document.getElementById('series-number').value),
+                matchResult: selectedResult,
                 mapId: document.getElementById('manual-map-select').value,
                 date: new Date().toLocaleString(),
                 myJob: document.getElementById('my-job').value,
@@ -405,33 +536,55 @@
             };
             records.push(record);
             localStorage.setItem('cc_death_records', JSON.stringify(records));
+            updateMatchIdFilter();
+            updateSeriesFilter();
             resetInput();
             alert("保存しました");
         }
 
         //画面表示
         function renderMap() {
-            overlay.innerHTML = '<svg id="map-svg"></svg>'; // SVGをリセット
+            overlay.innerHTML = '<svg id="map-svg"></svg>';
             const svg = document.getElementById('map-svg');
             const currentMapId = document.getElementById('manual-map-select').value;
+            const filterMatch = document.getElementById('view-filter-match').value;
+            const filterSeries = document.getElementById('view-filter-series').value;
+            const filterResult = document.getElementById('view-filter-result').value;
             const filterJob = document.getElementById('view-filter-job').value;
-            //入力モード
+            
             if (currentMode === 'input') {
                 drawPath(inputData.survivePath, svg); 
                 inputData.survivePath.forEach((p, i) => {
                     createDot(p.x, p.y, 'dot survive survive-step', i + 1, 'survive', i);
                 });
-                inputData.survivePath.forEach((p, i) => createDot(p.x, p.y, 'dot survive survive-step', i + 1, 'survive', i));
                 if (inputData.death) createDot(inputData.death.x, inputData.death.y, 'dot death', '💀');
                 if (inputData.crystal) createDot(inputData.crystal.x, inputData.crystal.y, 'dot crystal', 'C');
-                // indexを渡すことで、特定の味方/敵を削除可能にする
                 inputData.allies.forEach((a, i) => createDot(a.x, a.y, 'dot ally', a.job[0], 'ally', i));
                 inputData.enemies.forEach((e, i) => createDot(e.x, e.y, 'dot enemy', e.job[0], 'enemy', i));
             } else { //閲覧モード
                 // 1.マップでフィルタ
                 let mapRecords = records.filter(r => r.mapId == currentMapId);
                 
-                // 2.ジョブフィルターが「all」でなければ、ジョブでさらにフィルタ
+                // 2.試合IDでフィルタ
+                if (filterMatch !== 'all') {
+                    if (filterMatch === 'no-id') {
+                        mapRecords = mapRecords.filter(r => !r.matchId || r.matchId.trim() === '');
+                    } else {
+                        mapRecords = mapRecords.filter(r => r.matchId === filterMatch);
+                    }
+                }
+                
+                // 3.シリーズ番号でフィルタ
+                if (filterSeries !== 'all') {
+                    mapRecords = mapRecords.filter(r => r.seriesNumber == filterSeries);
+                }
+                
+                // 4.勝敗でフィルタ
+                if (filterResult !== 'all') {
+                    mapRecords = mapRecords.filter(r => (r.matchResult || 'unknown') === filterResult);
+                }
+                
+                // 5.ジョブでフィルタ
                 if (filterJob !== 'all') {
                     mapRecords = mapRecords.filter(r => r.myJob === filterJob);
                 }
@@ -460,7 +613,6 @@
                         if (r.death) {
                             createDot(r.death.x, r.death.y, 'dot view-mode-death', '💀').onclick = () => selectRecord(r.id);
                         } else if (r.survivePath && r.survivePath.length > 0) {
-                            // 逃走成功の初撃地点を盾アイコンで表示
                             createDot(r.survivePath[0].x, r.survivePath[0].y, 'dot survive', '🛡️').onclick = () => selectRecord(r.id);
                         }
                     });
@@ -468,7 +620,7 @@
             }
         }
 
-        // 線を引くための共通関数
+        /* 線を引く */
         function drawPath(path, svgElement) {
             if (!path || path.length < 2) return;
             let points = "";
@@ -478,10 +630,8 @@
             const polyline = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
             polyline.setAttribute("points", points);
             polyline.setAttribute("class", "path-line");
-            // %単位をSVG内で扱うための設定（重要）
             polyline.setAttribute("style", "vector-effect: non-scaling-stroke;");
             
-            // SVGのviewBoxを100x100に固定することで座標計算を楽にする
             svgElement.setAttribute("viewBox", "0 0 100 100");
             svgElement.setAttribute("preserveAspectRatio", "none");
             svgElement.appendChild(polyline);
@@ -495,10 +645,9 @@
             el.style.top = `${y}%`;
             el.innerText = text;
 
-            // 入力モードの時だけ、右クリックで個別削除できるようにする
             if (currentMode === 'input') {
                 el.oncontextmenu = (e) => {
-                    e.preventDefault(); // 右クリックメニューを出さない
+                    e.preventDefault();
                     if (type === 'ally') {
                         inputData.allies.splice(index, 1);
                     } else if (type === 'enemy') {
@@ -508,14 +657,13 @@
                     } else if (type === 'crystal') {
                         inputData.crystal = null;
                     }else if (type === 'survive') {
-                        //クリックした地点ではなく、最後に追加した地点から消す（経路を戻る）
                         inputData.survivePath.pop();
                     }
                     updateToolCounts();
+                    updateSaveButtonState();
                     renderMap();
                     return false;
                 };
-                // スマホ等のために「長押し」のヒントを出すならタイトル属性を追加
                 el.title = "右クリックで削除 / 経路を1つ戻す";
             }
 
@@ -531,6 +679,15 @@
                 selectedRecordId = id;
                 const r = records.find(x => x.id === id);
                 document.getElementById('view-details').style.display = 'block';
+                
+                // 試合情報を表示
+                const matchInfo = r.matchId ? `${r.matchId} (シリーズ${r.seriesNumber || '-'})` : '試合ID なし';
+                document.getElementById('v-match-series').innerText = matchInfo;
+                
+                // 勝敗を表示
+                const resultLabel = getResultLabel(r.matchResult);
+                document.getElementById('v-result').innerText = `勝敗: ${resultLabel}`;
+                
                 document.getElementById('v-time').innerText = r.date;
                 document.getElementById('v-job').innerText = r.myJob;
                 document.getElementById('v-mp').innerText = r.mp;
@@ -554,8 +711,8 @@
         function resetInput() {
             inputData = { death: null, crystal: null, allies: [], enemies: [], survivePath: []};
             updateToolCounts();
+            updateSaveButtonState();
             renderMap();
-            document.getElementById('save-btn').disabled = true;
         }
 
         function loadRecords() {
@@ -576,6 +733,8 @@
                 reader.onload = f => {
                     records = JSON.parse(f.target.result);
                     localStorage.setItem('cc_death_records', JSON.stringify(records));
+                    updateMatchIdFilter();
+                    updateSeriesFilter();
                     renderMap();
                 };
                 reader.readAsText(e.target.files[0]);
@@ -583,69 +742,71 @@
             inp.click();
         }
         
-        /* 選択中のレコードを入力画面にコピーして編集モードにする関数 */
+        /* 編集機能 */
         function editSelectedRecord() {
             if (!selectedRecordId) return;
             
-            // 1. 対象のレコードを探す
             const r = records.find(x => x.id === selectedRecordId);
             if (!r) return;
 
             if (!confirm("この内容を入力画面にコピーして編集しますか？\n（現在入力中の内容は上書きされます）")) return;
 
-            // 2. データを入力画面用の変数(inputData)にコピー
             inputData.death = r.death ? { ...r.death } : null;
             inputData.crystal = r.crystal ? { ...r.crystal } : null;
             inputData.allies = r.allies.map(a => ({ ...a }));
             inputData.enemies = r.enemies.map(e => ({ ...e }));
             inputData.survivePath = r.survivePath ? r.survivePath.map(p => ({ ...p })) : [];
 
-            // 3. フォームの各値をセット
+            document.getElementById('match-id').value = r.matchId || '';
+            document.getElementById('series-number').value = r.seriesNumber || 1;
+            document.querySelector(`input[name="match-result"][value="${r.matchResult || 'unknown'}"]`).checked = true;
             document.getElementById('my-job').value = r.myJob;
             document.getElementById('my-mp').value = r.mp;
             document.getElementById('my-guard').checked = r.guard;
             document.getElementById('my-skill').checked = r.skill;
             document.getElementById('manual-map-select').value = r.mapId;
             document.getElementById('my-note').value = r.note || "";
-            // 自動同期はオフにする
             document.getElementById('auto-sync-map').checked = false;
 
-            // 4. 元のデータを削除（「編集」なので、保存時に新しく作り直すため）
-            // 残したい場合はこの行をコメントアウトしてください。
             records = records.filter(x => x.id !== selectedRecordId);
             localStorage.setItem('cc_death_records', JSON.stringify(records));
+            updateMatchIdFilter();
+            updateSeriesFilter();
 
-            // 5. 画面の更新
             updateToolCounts();
-            switchMode('input'); // 入力画面に切り替え
-            changeMap(r.mapId);  // マップ画像を切り替え
+            updateSaveButtonState();
+            switchMode('input');
+            changeMap(r.mapId);
             
             alert("入力画面にコピーしました。修正して「記録を保存」を押してください。");
         }
         
-        /* 選択中のレコードを削除する関数 */
+        /* 削除機能 */
         function deleteSelectedRecord() {
             if (!selectedRecordId) return;
             
             if (confirm("この記録を削除してもよろしいですか？")) {
-                // 現在のIDと一致しないものだけを残す（＝選択中のものを削除）
                 records = records.filter(r => r.id !== selectedRecordId);
-                
-                // ローカルストレージを更新
                 localStorage.setItem('cc_death_records', JSON.stringify(records));
+                updateMatchIdFilter();
+                updateSeriesFilter();
                 
-                // 選択状態を解除して詳細パネルを隠す
                 selectedRecordId = null;
                 document.getElementById('view-details').style.display = 'none';
                 
-                // マップを再描画
                 renderMap();
                 alert("削除しました");
             }
         }
         
         function clearAllRecords() {
-            if(confirm("全消去しますか？")) { records = []; localStorage.removeItem('cc_death_records'); renderMap(); }
+            if(confirm("全消去しますか？")) { 
+                records = []; 
+                localStorage.removeItem('cc_death_records'); 
+                updateMatchIdFilter();
+                updateSeriesFilter();
+                renderMap(); 
+            }
         }
 
         // ヘルプモーダルの開閉
@@ -657,7 +818,6 @@
             document.getElementById('help-modal').style.display = 'none';
         }
 
-        // モーダルの外側をクリックしたら閉じる設定
         window.onclick = function(event) {
             const modal = document.getElementById('help-modal');
             if (event.target == modal) {
