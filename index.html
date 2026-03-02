@@ -202,7 +202,7 @@
             <div class="form-group">
                 <label>配置ツール</label>
                 <button class="tool-btn active" id="tool-death" onclick="setTool('death')">💀 倒れた場所 <span>0/1</span></button>
-                <button class="tool-btn" id="tool-survive" onclick="setTool('survive')">🛡️ 逃走経路 (最大5点) <span>0/5</span></button>
+                <button class="tool-btn" id="tool-survive" onclick="setTool('survive')">🛡️ 逃走経路 <span>0/10</span></button>
                 <button class="tool-btn" id="tool-crystal" onclick="setTool('crystal')">💎 クリスタル <span>0/1</span></button>
                 <div style="display: flex; gap: 5px; margin-bottom: 5px;">
                     <button class="tool-btn" id="tool-ally" style="margin-bottom:0;" onclick="setTool('ally')">🔵 味方 <span>0/4</span></button>
@@ -470,7 +470,7 @@
             const y = ((e.clientY - rect.top) / rect.height) * 100;
             if (activeTool === 'death') inputData.death = {x, y};
             else if (activeTool === 'survive') {
-                if (inputData.survivePath.length < 5) {
+                if (inputData.survivePath.length < 10) {
                 inputData.survivePath.push({x, y});
                 }
             }
@@ -489,7 +489,7 @@
             document.querySelector('#tool-crystal span').innerText = `${inputData.crystal?1:0}/1`;
             document.querySelector('#tool-ally span').innerText = `${inputData.allies.length}/4`;
             document.querySelector('#tool-enemy span').innerText = `${inputData.enemies.length}/5`;
-            document.querySelector('#tool-survive span').innerText = `${inputData.survivePath.length}/5`;
+            document.querySelector('#tool-survive span').innerText = `${inputData.survivePath.length}/10`;
         }
 
         function updateSaveButtonState() {
